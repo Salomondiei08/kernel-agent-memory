@@ -21,6 +21,6 @@
     "noImplicitThis": true,
     "alwaysStrict": true
   },
-  "include": ["src/**/*"],
+  "include": ["cli.ts", "src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
