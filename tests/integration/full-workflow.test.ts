@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import { resolve, join } from 'path';
 import { loadConfig, saveConfig, type KernelConfig, DEFAULT_CONFIG } from '../../src/utils/config.js';
 import { readMemoryFile, writeMemoryEntry, type MemoryEntry } from '../../src/utils/file-ops.js';
-import { parseTokenLog, formatTokenLogEntry, type TokenLogEntry } from '../../src/utils/token-tracker.js';
+import { parseTokenLog } from '../../src/utils/token-tracker.js';
 import { injectSessionStartContext } from '../../src/hooks/session-start.js';
 import { logSessionTokens } from '../../src/hooks/session-end.js';
 import { MemoryHandler } from '../../src/mcp/memory-handler.js';
