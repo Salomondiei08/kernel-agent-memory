@@ -7,3 +7,4 @@
 - Prepared the package for public npm distribution as `kernel-agent-memory`.
 - Added Claude/Codex hook stdin parsing, Claude JSONL transcript extraction, Codex hook feature enablement, and OpenCode plugin generation.
 - Added real Codex transcript discovery for hooks that omit a transcript path, plus README smoke-test and Ollama usage notes.
+- Updated development dependencies to the latest TypeScript, Vitest, and Node type definitions.
