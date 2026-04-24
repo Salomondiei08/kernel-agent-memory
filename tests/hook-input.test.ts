@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+  findCodexTranscript,
   readTranscriptText,
   resolveProjectRoot,
   type HookInput,
@@ -40,9 +41,53 @@ describe("hook-input", () => {
     ]);
 
     const text = await readTranscriptText(transcript);
-    expect(text).toContain("Decided: use hooks.");
+    expect(text).not.toContain("Decided: use hooks.");
     expect(text).toContain("Fixed: parse transcript JSONL.");
     expect(text).toContain("npm test");
+  });
+
+  it("extracts text from Codex-style JSONL transcript messages", async () => {
+    const transcript = await tempTranscript([
+      JSON.stringify({
+        type: "session_meta",
+        payload: {
+          id: "session-1",
+          cwd: "/tmp/project",
+          base_instructions: { text: "Do not include me." },
+        },
+      }),
+      JSON.stringify({
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "For this test: Decided: codex memory works.",
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "assistant",
+          content: [
+            {
+              type: "output_text",
+              text: "Decided: codex memory works.",
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const text = await readTranscriptText(transcript);
+    expect(text).toContain("Decided: codex memory works.");
+    expect(text).not.toContain("For this test:");
+    expect(text).not.toContain("Do not include me.");
   });
 
   it("returns empty text for missing transcripts", async () => {
@@ -60,5 +105,27 @@ describe("hook-input", () => {
     };
 
     expect(resolveProjectRoot(input)).toBe("/tmp/project");
+  });
+
+  it("finds Codex transcript by session id or project cwd", async () => {
+    const codexHome = await fs.mkdtemp(path.join(os.tmpdir(), "kernel-codex-home-"));
+    const dir = path.join(codexHome, "sessions", "2026", "04", "25");
+    await fs.mkdir(dir, { recursive: true });
+    const transcript = path.join(dir, "rollout-2026-04-25T10-00-00-session-abc.jsonl");
+    await fs.writeFile(
+      transcript,
+      `${JSON.stringify({
+        type: "session_meta",
+        payload: { id: "session-abc", cwd: "/tmp/project" },
+      })}\n`,
+      "utf8",
+    );
+
+    await expect(
+      findCodexTranscript({ session_id: "session-abc" }, "/tmp/project", codexHome),
+    ).resolves.toBe(transcript);
+    await expect(findCodexTranscript({}, "/tmp/project", codexHome)).resolves.toBe(
+      transcript,
+    );
   });
 });

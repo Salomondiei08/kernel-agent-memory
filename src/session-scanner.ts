@@ -14,11 +14,11 @@ const MAX_VALUE_CHARS = 500;
 
 // Single-line "keyword: rest of line" matcher used to classify a hit.
 const DECISION_RE =
-  /^.*\b(decided|decision|implement(?:ed)?|fixed|fix|use|using|avoid|pattern|architecture)\b\s*:\s*(.+)$/i;
+  /^.*\b(decided|decision|implement(?:ed)?|fixed|fix|avoid|pattern|architecture)\b\s*:\s*(.+)$/i;
 
 // Global variant used to iterate across all lines of the session.
 const DECISION_LINE_RE =
-  /^[^\n]*\b(decided|decision|implement(?:ed)?|fixed|fix|use|using|avoid|pattern|architecture)\b\s*:\s*[^\n]+$/gim;
+  /^[^\n]*\b(decided|decision|implement(?:ed)?|fixed|fix|avoid|pattern|architecture)\b\s*:\s*[^\n]+$/gim;
 
 /** Truncate a value to MAX_VALUE_CHARS with an ellipsis on overflow. */
 function clamp(value: string): string {
@@ -35,7 +35,6 @@ function classify(keyword: string): string {
   if (k.startsWith("implement")) return "implementation";
   if (k === "avoid") return "avoid";
   if (k === "pattern" || k === "architecture") return "architecture";
-  if (k === "use" || k === "using") return "decision";
   return "note";
 }
 

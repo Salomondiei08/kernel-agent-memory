@@ -15,6 +15,7 @@ import {
   readHookInput,
   resolveProjectRoot,
   readTranscriptText,
+  findCodexTranscript,
   type HookInput,
 } from "./hook-input.js";
 
@@ -51,7 +52,12 @@ export async function runSessionEnd(opts: SessionEndOptions = {}): Promise<numbe
 
   let text = opts.sessionText;
   if (text === undefined) {
-    text = await readTranscriptText(input.transcript_path);
+    const transcriptPath =
+      input.transcript_path ||
+      (agent === "codex"
+        ? await findCodexTranscript(input, projectRoot).catch(() => undefined)
+        : undefined);
+    text = await readTranscriptText(transcriptPath);
     if (!text) return 0;
   }
 

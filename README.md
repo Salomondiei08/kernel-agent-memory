@@ -1,6 +1,8 @@
-# Kernel: Shared Agent Memory
+# Kernel Agent Memory
 
 Kernel gives Claude Code, Codex, and OpenCode a small shared memory layer for a project. It installs session hooks that read recent context at startup and write high-signal session notes plus estimated token usage at shutdown.
+
+Kernel is intentionally small: no server, no database, no background daemon, and no runtime dependencies. Each project gets a local `.kernel/MEMORY.md` file that agents can share through their native hook systems.
 
 ## Features
 
@@ -10,6 +12,13 @@ Kernel gives Claude Code, Codex, and OpenCode a small shared memory layer for a 
 - **Local token tracking** — appends estimated usage to `.kernel/token-log.json`
 - **Agent hook registration** — updates Claude Code, Codex, and OpenCode hook surfaces while preserving existing settings
 - **Zero runtime dependencies** — offline-first and project-local
+
+## Status
+
+- Codex hook registration has been verified with a real Codex CLI smoke test.
+- Codex session capture works even when the hook payload does not include a transcript path; Kernel discovers the matching `~/.codex/sessions/**/*.jsonl` file by session id or project cwd.
+- Claude Code and OpenCode startup injection has been verified through their generated Kernel hooks.
+- Live Claude Code and OpenCode conversation tests depend on those CLIs and the selected model provider being available locally. For token-free Claude Code testing, use Ollama as shown below.
 
 ## Installation
 
@@ -36,6 +45,36 @@ After publishing, users can run it without cloning:
 
 ```bash
 npx kernel-agent-memory init
+```
+
+## Quick Smoke Test
+
+Create a scratch project, install hooks, run Codex once, then inspect the shared memory file:
+
+```bash
+mkdir /tmp/kernel-smoke
+cd /tmp/kernel-smoke
+npx kernel-agent-memory init
+codex exec --skip-git-repo-check -C "$PWD" \
+  "Reply exactly: Decided: kernel smoke test memory works."
+cat .kernel/MEMORY.md
+```
+
+You should see a `codex` memory entry containing the `Decided:` line.
+
+## Using Claude Code Without Anthropic Tokens
+
+If you have Claude Code installed but want to route it through a local Ollama model, launch it through Ollama's Claude Code integration:
+
+```bash
+ollama launch claude --model gemma4:e4b --yes -- \
+  -p "Reply with the Kernel project context you received. Do not inspect files."
+```
+
+OpenCode can be launched through Ollama in the same style:
+
+```bash
+ollama launch opencode --model gemma4:e4b
 ```
 
 ## Development
@@ -83,7 +122,7 @@ Optional variables used by hooks:
 ## Agent Support
 
 - **Claude Code**: installs `SessionStart` and `SessionEnd` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel parses that transcript and injects SessionStart stdout as context.
-- **Codex**: installs `SessionStart` and `Stop` command hooks in `~/.codex/hooks.json`, and enables `features.codex_hooks = true` in `~/.codex/config.toml`.
+- **Codex**: installs `SessionStart` and `Stop` command hooks in `~/.codex/hooks.json`, and enables `features.codex_hooks = true` in `~/.codex/config.toml`. Kernel also discovers Codex JSONL transcripts from `~/.codex/sessions` when Codex does not pass a transcript path directly.
 - **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. OpenCode does not expose the same transcript path as Claude/Codex, so this support is best-effort until explicit memory tooling is added.
 
 ## Project Structure
