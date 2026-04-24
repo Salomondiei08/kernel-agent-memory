@@ -1,8 +1,30 @@
-# Kernel Agent Memory
+<p align="center">
+  <img src="docs/assets/kernel-logo.png" alt="Kernel Agent Memory" width="180" />
+</p>
+
+<h1 align="center">Kernel Agent Memory</h1>
+
+<p align="center">
+  Shared project memory for Claude Code, Codex, and OpenCode.
+</p>
 
 Kernel gives Claude Code, Codex, and OpenCode a small shared memory layer for a project. It installs session hooks that read recent context at startup and write high-signal session notes plus estimated token usage at shutdown.
 
 Kernel is intentionally small: no server, no database, no background daemon, and no runtime dependencies. Each project gets a local `.kernel/MEMORY.md` file that agents can share through their native hook systems.
+
+## Stack
+
+| Layer | Technology | Why it is here |
+| --- | --- | --- |
+| Runtime | Node.js | Portable CLI and hook execution across local agent tools |
+| Language | TypeScript | Strict, typed source for maintainable hook parsing |
+| CLI | `kernel` bin | One command to initialize project memory and register hooks |
+| Storage | Markdown + JSONL | Human-readable memory and append-only local token estimates |
+| Hooks | Claude Code, Codex, OpenCode | Native startup/shutdown integration without a daemon |
+| Testing | Vitest | Fast unit tests for scanners, hook input parsing, memory, and registry behavior |
+| Local Models | Ollama | Token-free Claude Code/OpenCode experiments with local models such as Gemma |
+| Packaging | npm | Public distribution through `kernel-agent-memory` |
+| Hosting | GitHub | Public source, issues, and release history |
 
 ## Features
 

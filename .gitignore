@@ -19,6 +19,7 @@ yarn-error.log*
 .env.*.local
 
 # Kernel-specific files
+.kernel/MEMORY.md
 .kernel/token-log.json
 .kernel/.bak
 .kernel/.lock
