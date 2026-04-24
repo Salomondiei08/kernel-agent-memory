@@ -221,6 +221,61 @@ export async function findCodexTranscript(
   return candidates[0]?.file;
 }
 
+/**
+ * Reconstruct text from OpenCode's local JSON storage. OpenCode persists
+ * sessions in `~/.local/share/opencode/storage/session`, messages in
+ * `storage/message/<session-id>`, and message parts in
+ * `storage/part/<message-id>`.
+ */
+export async function readOpenCodeTranscriptText(
+  input: TranscriptLookupInput,
+  projectRoot: string,
+  dataHome: string =
+    process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"),
+): Promise<string> {
+  const storageRoot = path.join(dataHome, "opencode", "storage");
+  const sessionId =
+    input.session_id || (await findLatestOpenCodeSession(projectRoot, storageRoot));
+  if (!sessionId) return "";
+
+  const messageDir = path.join(storageRoot, "message", sessionId);
+  let entries: Array<import("node:fs").Dirent>;
+  try {
+    entries = await fs.readdir(messageDir, { withFileTypes: true });
+  } catch {
+    return "";
+  }
+
+  const messages: Array<{ id: string; role: string; created: number }> = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const message = await readJsonFile<Record<string, unknown>>(
+      path.join(messageDir, entry.name),
+    );
+    if (!message) continue;
+    if (message.role !== "assistant") continue;
+    if (typeof message.id !== "string") continue;
+    const time = message.time as { created?: unknown } | undefined;
+    messages.push({
+      id: message.id,
+      role: "assistant",
+      created: typeof time?.created === "number" ? time.created : 0,
+    });
+  }
+
+  messages.sort((a, b) => a.created - b.created);
+  const chunks: string[] = [];
+  const seen = new Set<string>();
+  for (const message of messages) {
+    const text = await readOpenCodeMessageParts(storageRoot, message.id);
+    if (text && !seen.has(text)) {
+      seen.add(text);
+      chunks.push(text);
+    }
+  }
+  return chunks.join("\n\n");
+}
+
 async function listJsonlFiles(root: string): Promise<string[]> {
   const out: string[] = [];
   async function walk(dir: string): Promise<void> {
@@ -260,6 +315,85 @@ async function readSessionMeta(file: string): Promise<{ id?: string; cwd?: strin
     };
     if (parsed.type !== "session_meta") return undefined;
     return parsed.payload;
+  } catch {
+    return undefined;
+  }
+}
+
+async function findLatestOpenCodeSession(
+  projectRoot: string,
+  storageRoot: string,
+): Promise<string | undefined> {
+  const sessionRoot = path.join(storageRoot, "session");
+  const files = await listJsonFiles(sessionRoot);
+  const candidates: Array<{ id: string; updated: number }> = [];
+  for (const file of files) {
+    const session = await readJsonFile<Record<string, unknown>>(file);
+    if (!session || session.directory !== projectRoot) continue;
+    if (typeof session.id !== "string") continue;
+    const time = session.time as { updated?: unknown; created?: unknown } | undefined;
+    const updated =
+      typeof time?.updated === "number"
+        ? time.updated
+        : typeof time?.created === "number"
+          ? time.created
+          : 0;
+    candidates.push({ id: session.id, updated });
+  }
+  candidates.sort((a, b) => b.updated - a.updated);
+  return candidates[0]?.id;
+}
+
+async function readOpenCodeMessageParts(
+  storageRoot: string,
+  messageId: string,
+): Promise<string> {
+  const partDir = path.join(storageRoot, "part", messageId);
+  let entries: Array<import("node:fs").Dirent>;
+  try {
+    entries = await fs.readdir(partDir, { withFileTypes: true });
+  } catch {
+    return "";
+  }
+
+  const parts: Array<{ text: string; name: string }> = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const part = await readJsonFile<Record<string, unknown>>(
+      path.join(partDir, entry.name),
+    );
+    if (!part || part.type !== "text" || typeof part.text !== "string") continue;
+    parts.push({ text: part.text, name: entry.name });
+  }
+  parts.sort((a, b) => a.name.localeCompare(b.name));
+  return parts.map((part) => part.text).join("\n");
+}
+
+async function listJsonFiles(root: string): Promise<string[]> {
+  const out: string[] = [];
+  async function walk(dir: string): Promise<void> {
+    let entries: Array<import("node:fs").Dirent>;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (entry.isFile() && full.endsWith(".json")) {
+        out.push(full);
+      }
+    }
+  }
+  await walk(root);
+  return out;
+}
+
+async function readJsonFile<T>(file: string): Promise<T | undefined> {
+  try {
+    return JSON.parse(await fs.readFile(file, "utf8")) as T;
   } catch {
     return undefined;
   }

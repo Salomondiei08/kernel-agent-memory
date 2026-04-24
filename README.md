@@ -39,6 +39,7 @@ Kernel is intentionally small: no server, no database, no background daemon, and
 
 - Codex hook registration has been verified with a real Codex CLI smoke test.
 - Codex session capture works even when the hook payload does not include a transcript path; Kernel discovers the matching `~/.codex/sessions/**/*.jsonl` file by session id or project cwd.
+- OpenCode write-back reconstructs assistant messages from local `~/.local/share/opencode/storage` JSON files.
 - Claude Code and OpenCode startup injection has been verified through their generated Kernel hooks.
 - Live Claude Code and OpenCode conversation tests depend on those CLIs and the selected model provider being available locally. For token-free Claude Code testing, use Ollama as shown below.
 
@@ -145,7 +146,7 @@ Optional variables used by hooks:
 
 - **Claude Code**: installs `SessionStart` and `SessionEnd` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel parses that transcript and injects SessionStart stdout as context.
 - **Codex**: installs `SessionStart` and `Stop` command hooks in `~/.codex/hooks.json`, and enables `features.codex_hooks = true` in `~/.codex/config.toml`. Kernel also discovers Codex JSONL transcripts from `~/.codex/sessions` when Codex does not pass a transcript path directly.
-- **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. OpenCode does not expose the same transcript path as Claude/Codex, so this support is best-effort until explicit memory tooling is added.
+- **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. Kernel reconstructs assistant text from OpenCode's local `~/.local/share/opencode/storage` JSON files when the session becomes idle.
 
 ## Project Structure
 
@@ -172,7 +173,7 @@ Optional variables used by hooks:
 
 - MCP memory tools for explicit agent reads/writes
 - Dashboard for token and memory trends
-- Richer OpenCode transcript capture
+- More explicit OpenCode context injection once its plugin API exposes first-class prompt augmentation
 - SQLite backend and cross-project memory index
 
 ## License

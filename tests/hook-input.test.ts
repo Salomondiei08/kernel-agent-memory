@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   findCodexTranscript,
+  readOpenCodeTranscriptText,
   readTranscriptText,
   resolveProjectRoot,
   type HookInput,
@@ -126,6 +127,65 @@ describe("hook-input", () => {
     ).resolves.toBe(transcript);
     await expect(findCodexTranscript({}, "/tmp/project", codexHome)).resolves.toBe(
       transcript,
+    );
+  });
+
+  it("reconstructs assistant text from OpenCode storage", async () => {
+    const dataHome = await fs.mkdtemp(path.join(os.tmpdir(), "kernel-opencode-data-"));
+    const storage = path.join(dataHome, "opencode", "storage");
+    const sessionId = "ses_test";
+    const messageId = "msg_assistant";
+
+    await fs.mkdir(path.join(storage, "session", "project-test"), { recursive: true });
+    await fs.mkdir(path.join(storage, "message", sessionId), { recursive: true });
+    await fs.mkdir(path.join(storage, "part", messageId), { recursive: true });
+
+    await fs.writeFile(
+      path.join(storage, "session", "project-test", `${sessionId}.json`),
+      JSON.stringify({
+        id: sessionId,
+        directory: "/tmp/project",
+        time: { created: 1, updated: 2 },
+      }),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(storage, "message", sessionId, "msg_user.json"),
+      JSON.stringify({
+        id: "msg_user",
+        sessionID: sessionId,
+        role: "user",
+        time: { created: 3 },
+      }),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(storage, "message", sessionId, `${messageId}.json`),
+      JSON.stringify({
+        id: messageId,
+        sessionID: sessionId,
+        role: "assistant",
+        time: { created: 4 },
+      }),
+      "utf8",
+    );
+    await fs.mkdir(path.join(storage, "part", "msg_user"), { recursive: true });
+    await fs.writeFile(
+      path.join(storage, "part", "msg_user", "prt_user.json"),
+      JSON.stringify({ type: "text", text: "Decided: ignore user text." }),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(storage, "part", messageId, "prt_1.json"),
+      JSON.stringify({ type: "text", text: "Decided: opencode memory works." }),
+      "utf8",
+    );
+
+    await expect(
+      readOpenCodeTranscriptText({ session_id: sessionId }, "/tmp/project", dataHome),
+    ).resolves.toBe("Decided: opencode memory works.");
+    await expect(readOpenCodeTranscriptText({}, "/tmp/project", dataHome)).resolves.toBe(
+      "Decided: opencode memory works.",
     );
   });
 });

@@ -16,6 +16,7 @@ import {
   resolveProjectRoot,
   readTranscriptText,
   findCodexTranscript,
+  readOpenCodeTranscriptText,
   type HookInput,
 } from "./hook-input.js";
 
@@ -57,7 +58,10 @@ export async function runSessionEnd(opts: SessionEndOptions = {}): Promise<numbe
       (agent === "codex"
         ? await findCodexTranscript(input, projectRoot).catch(() => undefined)
         : undefined);
-    text = await readTranscriptText(transcriptPath);
+    text =
+      agent === "opencode"
+        ? await readOpenCodeTranscriptText(input, projectRoot).catch(() => "")
+        : await readTranscriptText(transcriptPath);
     if (!text) return 0;
   }
 

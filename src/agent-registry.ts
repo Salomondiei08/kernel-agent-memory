@@ -141,8 +141,8 @@ export function mergeHooks(
 /**
  * Generate the OpenCode plugin source. OpenCode plugins export a factory
  * that receives context and returns event handlers. We subscribe to
- * session.start (prints memory to stdout) and session.idle (captures
- * snippets). The payload we pipe to the Node hook scripts is
+ * session.start (prints memory to stdout) and session.idle (captures snippets
+ * from OpenCode's local JSON storage). The payload we pipe to the Node hook scripts is
  * Claude-compatible so the hook scripts stay agent-agnostic.
  */
 function buildOpenCodePlugin(kernelRoot: string): string {
