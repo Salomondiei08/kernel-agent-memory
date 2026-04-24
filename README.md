@@ -8,7 +8,7 @@ Kernel gives Claude Code, Codex, and OpenCode a small shared memory layer for a 
 - **SessionStart context** — prints the five most recent memories for agent context injection
 - **SessionEnd capture** — extracts decision, implementation, fix, architecture, avoid, and code-snippet lines
 - **Local token tracking** — appends estimated usage to `.kernel/token-log.json`
-- **Agent hook registration** — updates Claude Code, Codex, and OpenCode config files while preserving existing settings
+- **Agent hook registration** — updates Claude Code, Codex, and OpenCode hook surfaces while preserving existing settings
 - **Zero runtime dependencies** — offline-first and project-local
 
 ## Installation
@@ -80,6 +80,12 @@ Optional variables used by hooks:
 - `AGENT_TYPE` — agent label stored with memory and token entries
 - `KERNEL_MODEL`, `CLAUDE_MODEL`, or `OPENAI_MODEL` — model label for token entries
 
+## Agent Support
+
+- **Claude Code**: installs `SessionStart` and `SessionEnd` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel parses that transcript and injects SessionStart stdout as context.
+- **Codex**: installs `SessionStart` and `Stop` command hooks in `~/.codex/hooks.json`, and enables `features.codex_hooks = true` in `~/.codex/config.toml`.
+- **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. OpenCode does not expose the same transcript path as Claude/Codex, so this support is best-effort until explicit memory tooling is added.
+
 ## Project Structure
 
 ```
@@ -105,6 +111,7 @@ Optional variables used by hooks:
 
 - MCP memory tools for explicit agent reads/writes
 - Dashboard for token and memory trends
+- Richer OpenCode transcript capture
 - SQLite backend and cross-project memory index
 
 ## License

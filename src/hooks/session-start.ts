@@ -12,11 +12,15 @@
  */
 
 import { getRecentMemory } from "../memory.js";
+import { readHookInput, resolveProjectRoot } from "./hook-input.js";
 
 export async function runSessionStart(
-  projectRoot: string = process.env.KERNEL_PROJECT_ROOT || process.cwd(),
+  projectRoot?: string,
 ): Promise<string> {
-  const entries = await getRecentMemory(projectRoot, 5);
+  const root =
+    projectRoot ||
+    resolveProjectRoot(await readHookInput().catch(() => ({})));
+  const entries = await getRecentMemory(root, 5);
   if (entries.length === 0) return "";
 
   const lines: string[] = ["# Project Context (from Kernel)", ""];
@@ -30,9 +34,14 @@ export async function runSessionStart(
 // CLI entry point — only runs when executed directly, not when imported by tests.
 const isDirect = import.meta.url === `file://${process.argv[1]}`;
 if (isDirect) {
-  runSessionStart()
-    .then((out) => {
+  (async () => {
+    try {
+      const input = await readHookInput();
+      const root = resolveProjectRoot(input);
+      const out = await runSessionStart(root);
       if (out) process.stdout.write(out);
-    })
-    .catch(() => process.exit(0));
+    } catch {
+      process.exit(0);
+    }
+  })();
 }

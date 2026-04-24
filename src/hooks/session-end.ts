@@ -8,26 +8,42 @@
  * the agent from shutting down.
  */
 
-import { promises as fs } from "node:fs";
 import { appendMemory } from "../memory.js";
 import { extractSnippets } from "../session-scanner.js";
 import { appendTokenLog } from "../token-log.js";
+import {
+  readHookInput,
+  resolveProjectRoot,
+  readTranscriptText,
+  type HookInput,
+} from "./hook-input.js";
 
 export interface SessionEndOptions {
   projectRoot?: string;
-  sessionFile?: string;
   agent?: string;
   model?: string;
   /** When provided, skips disk read and uses this text directly (tests). */
   sessionText?: string;
+  /** Pre-parsed hook input (skips stdin read). */
+  hookInput?: HookInput;
 }
 
 export async function runSessionEnd(opts: SessionEndOptions = {}): Promise<number> {
-  const projectRoot =
-    opts.projectRoot || process.env.KERNEL_PROJECT_ROOT || process.cwd();
-  const agent = opts.agent || process.env.AGENT_TYPE || "unknown-agent";
+  const input: HookInput =
+    opts.hookInput ??
+    (opts.sessionText === undefined && !opts.projectRoot
+      ? await readHookInput().catch(() => ({}))
+      : {});
+
+  const projectRoot = opts.projectRoot || resolveProjectRoot(input);
+  const agent =
+    opts.agent ||
+    process.env.AGENT_TYPE ||
+    process.argv[2] ||
+    "claude-code";
   const model =
     opts.model ||
+    input.model ||
     process.env.KERNEL_MODEL ||
     process.env.CLAUDE_MODEL ||
     process.env.OPENAI_MODEL ||
@@ -35,17 +51,8 @@ export async function runSessionEnd(opts: SessionEndOptions = {}): Promise<numbe
 
   let text = opts.sessionText;
   if (text === undefined) {
-    const sessionFile =
-      opts.sessionFile ||
-      process.env.CLAUDE_SESSION_FILE ||
-      process.env.SESSION_FILE ||
-      process.argv[2];
-    if (!sessionFile) return 0;
-    try {
-      text = await fs.readFile(sessionFile, "utf8");
-    } catch {
-      return 0;
-    }
+    text = await readTranscriptText(input.transcript_path);
+    if (!text) return 0;
   }
 
   const snippets = extractSnippets(text, agent);
