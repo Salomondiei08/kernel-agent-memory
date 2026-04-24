@@ -1,26 +1,41 @@
-# Kernel: Unified Multi-Agent Memory & Token Tracking
+# Kernel: Shared Agent Memory
 
-Kernel solves multi-agent context fragmentation by providing a unified memory layer and local token tracking system. Agents (Claude Code, Codex, OpenCode) share project memory across sessions while maintaining visibility into token consumption per model, agent, and project.
+Kernel gives Claude Code, Codex, and OpenCode a small shared memory layer for a project. It installs session hooks that read recent context at startup and write high-signal session notes plus estimated token usage at shutdown.
 
 ## Features
 
-- **Unified memory store** — file-based (MEMORY.md + project structure), optionally SQLite for scale
-- **Cross-agent sync** — MCP-based read/write interface, no network calls
-- **Local token tracking** — SessionEnd hook scans logs, estimates tokens via `js-tiktoken`
-- **Web dashboard** (optional) — visualize token usage, memory size, cost trends
-- **Modular installation** — barebones (memory only) or full (dashboard + SQLite)
-- **Zero external APIs** — offline-first, runs entirely in project directory
+- **Shared memory store** — human-readable `.kernel/MEMORY.md`
+- **SessionStart context** — prints the five most recent memories for agent context injection
+- **SessionEnd capture** — extracts decision, implementation, fix, architecture, avoid, and code-snippet lines
+- **Local token tracking** — appends estimated usage to `.kernel/token-log.json`
+- **Agent hook registration** — updates Claude Code, Codex, and OpenCode config files while preserving existing settings
+- **Zero runtime dependencies** — offline-first and project-local
 
 ## Installation
 
 ```bash
-npm install
+npm install kernel-agent-memory
 ```
 
 ## Setup
 
+Build the CLI:
+
 ```bash
 npm run build
+```
+
+Install hooks for the current user and create `.kernel/MEMORY.md` in the current project:
+
+```bash
+npm link
+kernel init
+```
+
+After publishing, users can run it without cloning:
+
+```bash
+npx kernel-agent-memory init
 ```
 
 ## Development
@@ -49,15 +64,21 @@ npm run typecheck
 
 Kernel consists of:
 
-1. **MCP Server** — Exposes memory operations via standard MCP protocol
-2. **Memory Store** — File-based MEMORY.md in project root, with dated archives
-3. **Token Tracker** — SessionEnd hook scans and logs token usage to `.kernel/token-log.json`
-4. **Web Dashboard** (optional) — Next.js app for visualization
-5. **Hook System** — SessionStart/SessionEnd integration with Claude Code and other agents
+1. **CLI** — `kernel init` creates project memory and registers hooks.
+2. **Memory Store** — `.kernel/MEMORY.md` stores timestamped entries by agent.
+3. **Session Scanner** — deterministic regex heuristics extract useful snippets from transcripts.
+4. **Token Log** — `.kernel/token-log.json` stores newline-delimited usage estimates.
+5. **Hook System** — SessionStart/SessionEnd integration with Claude Code, Codex, and OpenCode.
 
 ## Required Environment Variables
 
 None. Kernel runs entirely offline.
+
+Optional variables used by hooks:
+
+- `KERNEL_PROJECT_ROOT` — project directory to read/write; defaults to `process.cwd()`
+- `AGENT_TYPE` — agent label stored with memory and token entries
+- `KERNEL_MODEL`, `CLAUDE_MODEL`, or `OPENAI_MODEL` — model label for token entries
 
 ## Project Structure
 
@@ -65,18 +86,26 @@ None. Kernel runs entirely offline.
 .
 ├── src/                    # TypeScript source files
 │   ├── cli.ts             # CLI entry point
-│   ├── index.ts           # Main exports
-│   └── mcp-server/        # MCP server implementation
+│   ├── agent-registry.ts  # Agent config hook registration
+│   ├── memory.ts          # File-based memory store
+│   ├── session-scanner.ts # Transcript snippet extraction
+│   ├── token-log.ts       # Local token usage log
+│   └── hooks/             # SessionStart and SessionEnd commands
 ├── dist/                  # Compiled JavaScript (generated)
 ├── .kernel/               # Kernel runtime directory (generated)
-│   ├── kernel.json
-│   ├── mcp-server/
+│   ├── MEMORY.md
 │   ├── token-log.json
-│   └── dashboard/         # (optional) Next.js app
 ├── package.json
 ├── tsconfig.json
+├── VERSION.md
 └── README.md
 ```
+
+## Roadmap
+
+- MCP memory tools for explicit agent reads/writes
+- Dashboard for token and memory trends
+- SQLite backend and cross-project memory index
 
 ## License
 

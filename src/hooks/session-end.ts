@@ -1,49 +1,63 @@
-import { promises as fs } from 'fs';
-import { dirname, join } from 'path';
-import {
-  estimateTokens,
-  formatTokenLogEntry,
-  TokenLogEntry,
-} from '../utils/token-tracker.js';
-import { SessionEndContext } from './types.js';
-
+#!/usr/bin/env node
 /**
- * Logs session token usage at the end of a session
- * Estimates tokens from session content and appends to token log
+ * SessionEnd hook: invoked when an agent session terminates. Reads the
+ * session transcript (path from env var or first CLI arg), extracts key
+ * snippets, and appends them to the project's `.kernel/MEMORY.md`.
  *
- * @param context - Session end context with content and model information
- * @throws If file operations fail or token estimation fails
+ * Silent on success; exits 0 on error so a Kernel failure cannot prevent
+ * the agent from shutting down.
  */
-export async function logSessionTokens(context: SessionEndContext): Promise<void> {
-  // Estimate tokens from session content
-  const tokens = estimateTokens(context.sessionContent);
 
-  // Create token log entry
-  const entry: TokenLogEntry = {
-    timestamp: new Date().toISOString(),
-    model: context.model,
-    tokens,
-    agent: context.agent,
-    project: context.project,
-  };
+import { promises as fs } from "node:fs";
+import { appendMemory } from "../memory.js";
+import { extractSnippets } from "../session-scanner.js";
+import { appendTokenLog } from "../token-log.js";
 
-  // Format the entry as JSON
-  const formattedEntry = formatTokenLogEntry(entry);
+export interface SessionEndOptions {
+  projectRoot?: string;
+  sessionFile?: string;
+  agent?: string;
+  model?: string;
+  /** When provided, skips disk read and uses this text directly (tests). */
+  sessionText?: string;
+}
 
-  // Ensure .kernel directory exists
-  const tokenLogPath = join(context.projectRoot, '.kernel', 'token-log.json');
-  const dir = dirname(tokenLogPath);
-  await fs.mkdir(dir, { recursive: true });
+export async function runSessionEnd(opts: SessionEndOptions = {}): Promise<number> {
+  const projectRoot =
+    opts.projectRoot || process.env.KERNEL_PROJECT_ROOT || process.cwd();
+  const agent = opts.agent || process.env.AGENT_TYPE || "unknown-agent";
+  const model =
+    opts.model ||
+    process.env.KERNEL_MODEL ||
+    process.env.CLAUDE_MODEL ||
+    process.env.OPENAI_MODEL ||
+    "unknown-model";
 
-  // Append to token-log.json (NDJSON format - one JSON object per line)
-  try {
-    await fs.appendFile(tokenLogPath, formattedEntry + '\n', 'utf-8');
-  } catch (error) {
-    // If file doesn't exist, create it
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      await fs.writeFile(tokenLogPath, formattedEntry + '\n', 'utf-8');
-    } else {
-      throw error;
+  let text = opts.sessionText;
+  if (text === undefined) {
+    const sessionFile =
+      opts.sessionFile ||
+      process.env.CLAUDE_SESSION_FILE ||
+      process.env.SESSION_FILE ||
+      process.argv[2];
+    if (!sessionFile) return 0;
+    try {
+      text = await fs.readFile(sessionFile, "utf8");
+    } catch {
+      return 0;
     }
   }
+
+  const snippets = extractSnippets(text, agent);
+  for (const s of snippets) {
+    await appendMemory(projectRoot, { agent, key: s.key, value: s.value });
+  }
+
+  await appendTokenLog({ projectRoot, agent, model, text });
+  return snippets.length;
+}
+
+const isDirect = import.meta.url === `file://${process.argv[1]}`;
+if (isDirect) {
+  runSessionEnd().catch(() => process.exit(0));
 }

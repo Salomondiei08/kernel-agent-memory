@@ -1,42 +1,38 @@
-import { promises as fs } from 'fs';
-import { dirname, join } from 'path';
-import { readMemoryFile } from '../utils/file-ops.js';
-import { HookContext } from './types.js';
-
+#!/usr/bin/env node
 /**
- * Injects session start context by reading top 5 recent memory entries
- * and writing them to a context file for consumption by Claude Code
+ * SessionStart hook: invoked by Claude Code / Codex / OpenCode when a new
+ * session begins. Reads the 5 most recent memory entries from the current
+ * project's `.kernel/MEMORY.md` and prints them to stdout.
  *
- * @param context - Hook context with session and project metadata
- * @throws If file operations fail or memory handler fails
+ * Claude Code's hook protocol injects stdout into the agent's system context,
+ * so this is how the next session "remembers" the last one.
+ *
+ * Silent if there's no memory yet. Exits 0 on any error to avoid blocking
+ * session startup.
  */
-export async function injectSessionStartContext(context: HookContext): Promise<void> {
-  // Read memory entries from .kernel/MEMORY.md
-  const memoryPath = join(context.projectRoot, '.kernel', 'MEMORY.md');
-  const entries = await readMemoryFile(memoryPath);
 
-  // Sort by timestamp (newest first) and take top 5
-  entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  const top5 = entries.slice(0, 5);
+import { getRecentMemory } from "../memory.js";
 
-  // Format as markdown
-  let contextContent = '# Project Context (from Kernel)\n\n';
+export async function runSessionStart(
+  projectRoot: string = process.env.KERNEL_PROJECT_ROOT || process.cwd(),
+): Promise<string> {
+  const entries = await getRecentMemory(projectRoot, 5);
+  if (entries.length === 0) return "";
 
-  if (top5.length === 0) {
-    contextContent += 'No previous session context found.\n';
-  } else {
-    for (const entry of top5) {
-      contextContent += `- **${entry.key}**: ${entry.value}\n`;
-    }
+  const lines: string[] = ["# Project Context (from Kernel)", ""];
+  for (const e of entries) {
+    const oneLine = e.value.replace(/\s*\n\s*/g, " ").trim();
+    lines.push(`- **${e.key}**: ${oneLine}`);
   }
+  return lines.join("\n") + "\n";
+}
 
-  // Write to .kernel/.session-context
-  const contextPath = join(context.projectRoot, '.kernel', '.session-context');
-
-  // Ensure directory exists
-  const dir = dirname(contextPath);
-  await fs.mkdir(dir, { recursive: true });
-
-  // Write the context file
-  await fs.writeFile(contextPath, contextContent, 'utf-8');
+// CLI entry point — only runs when executed directly, not when imported by tests.
+const isDirect = import.meta.url === `file://${process.argv[1]}`;
+if (isDirect) {
+  runSessionStart()
+    .then((out) => {
+      if (out) process.stdout.write(out);
+    })
+    .catch(() => process.exit(0));
 }
