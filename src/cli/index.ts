@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { promises as fs } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import { saveConfig, DEFAULT_CONFIG, type KernelConfig } from '../utils/config.js';
 
 /**
@@ -38,8 +38,30 @@ function parseArgs(args: string[]): {
 }
 
 /**
+ * Create MCP configuration file in project root
+ */
+async function createMcpConfig(projectRoot: string, kernelServerPath: string): Promise<void> {
+  const mcpConfigPath = resolve(projectRoot, '.mcp.json');
+  const mcpConfig = {
+    mcpServers: {
+      kernel: {
+        command: 'node',
+        args: [kernelServerPath],
+        env: {
+          KERNEL_PROJECT_ROOT: projectRoot,
+        },
+      },
+    },
+  };
+
+  await fs.writeFile(mcpConfigPath, JSON.stringify(mcpConfig, null, 2), 'utf-8');
+  console.log('✓ Created .mcp.json (Claude Code registered)');
+}
+
+/**
  * Initialize kernel in the current project
  * Creates .kernel directory with kernel.json, MEMORY.md, and token-log.json
+ * Also creates .mcp.json for Claude Code integration
  */
 async function initKernel(options: {
   mode: 'bare' | 'full';
@@ -75,13 +97,21 @@ async function initKernel(options: {
     await fs.writeFile(tokenLogPath, tokenLogContent, 'utf-8');
     console.log('✓ Created token-log.json');
 
+    // Create .mcp.json with MCP server configuration
+    // Runtime: src/cli/index.ts is at dist/src/cli/index.js
+    // Server is at dist/src/mcp/server.js, so go up one level from cli/ to src/
+    const cliDir = dirname(new URL(import.meta.url).pathname);
+    const kernelServerPath = resolve(cliDir, '../mcp/server.js');
+    await createMcpConfig(projectRoot, kernelServerPath);
+
     console.log('\n✓ Kernel initialized successfully!');
     console.log(`\nMode: ${options.mode}`);
     console.log(`Project root: ${projectRoot}`);
     console.log(`\nNext steps:`);
-    console.log(`1. Review .kernel/kernel.json to configure your setup`);
-    console.log(`2. Update .kernel/MEMORY.md with your project context`);
-    console.log(`3. Run 'kernel start' to begin tracking tokens`);
+    console.log(`1. Restart Claude Code (cmd+q, then reopen)`);
+    console.log(`2. Open this project in Claude Code`);
+    console.log(`3. Start using: kernel.memory.add("key", "value")`);
+    console.log(`4. Memory auto-injects on next session`);
   } catch (error) {
     console.error('✗ Failed to initialize kernel:', error instanceof Error ? error.message : String(error));
     process.exit(1);

@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(3, 7, 18);
+  color: rgb(243, 244, 246);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Recharts customization for dark theme */
+.recharts-wrapper {
+  color: rgb(243, 244, 246);
+}
+
+.recharts-text {
+  fill: rgb(209, 213, 219);
+}
+
+.recharts-cartesian-axis-tick {
+  fill: rgb(156, 163, 175);
+}
+
+.recharts-legend-wrapper {
+  color: rgb(209, 213, 219);
+}
