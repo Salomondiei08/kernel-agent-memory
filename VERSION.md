@@ -10,3 +10,4 @@
 - Updated development dependencies to the latest TypeScript, Vitest, and Node type definitions.
 - Added OpenCode write-back from local session/message/part storage files.
 - Added structured Claude Code `SessionStart` context and OpenCode system prompt injection so stored memory appears in new agent sessions.
+- Updated Claude Code write-back registration to use the current `Stop` hook event.

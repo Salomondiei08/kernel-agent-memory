@@ -34,10 +34,11 @@ describe("agent-registry", () => {
     );
   });
 
-  it("mergeHooks adds SessionStart and SessionEnd blocks", () => {
+  it("mergeHooks adds SessionStart and Stop blocks for Claude Code", () => {
     const merged = mergeHooks({}, kernelRoot);
     expect(merged.hooks?.SessionStart).toHaveLength(1);
-    expect(merged.hooks?.SessionEnd).toHaveLength(1);
+    expect(merged.hooks?.Stop).toHaveLength(1);
+    expect(merged.hooks?.SessionEnd).toBeUndefined();
     expect(merged.hooks!.SessionStart![0].hooks[0].command).toContain(
       "session-start.js",
     );
@@ -48,7 +49,7 @@ describe("agent-registry", () => {
     expect(merged.hooks!.SessionStart![0].hooks[0].command).toBe(
       'node "/fake/kernel with spaces/dist/hooks/session-start.js" claude-code',
     );
-    expect(merged.hooks!.SessionEnd![0].hooks[0].command).toBe(
+    expect(merged.hooks!.Stop![0].hooks[0].command).toBe(
       'node "/fake/kernel with spaces/dist/hooks/session-end.js" claude-code',
     );
   });
@@ -90,7 +91,8 @@ describe("agent-registry", () => {
     const once = mergeHooks({}, kernelRoot);
     const twice = mergeHooks(once as Record<string, unknown>, kernelRoot);
     expect(twice.hooks?.SessionStart).toHaveLength(1);
-    expect(twice.hooks?.SessionEnd).toHaveLength(1);
+    expect(twice.hooks?.Stop).toHaveLength(1);
+    expect(twice.hooks?.SessionEnd).toBeUndefined();
   });
 
   it("registerHooks creates config files that did not exist", async () => {
@@ -102,7 +104,8 @@ describe("agent-registry", () => {
       await fs.readFile(path.join(home, ".claude", "settings.json"), "utf8"),
     );
     expect(claude.hooks.SessionStart).toHaveLength(1);
-    expect(claude.hooks.SessionEnd).toHaveLength(1);
+    expect(claude.hooks.Stop).toHaveLength(1);
+    expect(claude.hooks.SessionEnd).toBeUndefined();
 
     const codex = JSON.parse(
       await fs.readFile(path.join(home, ".codex", "hooks.json"), "utf8"),
@@ -155,7 +158,8 @@ describe("agent-registry", () => {
       ),
     );
     expect(parsed.hooks.SessionStart).toHaveLength(1);
-    expect(parsed.hooks.SessionEnd).toHaveLength(1);
+    expect(parsed.hooks.Stop).toHaveLength(1);
+    expect(parsed.hooks.SessionEnd).toBeUndefined();
 
     const codex = JSON.parse(
       await fs.readFile(path.join(home, ".codex", "hooks.json"), "utf8"),

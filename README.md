@@ -144,7 +144,7 @@ Optional variables used by hooks:
 
 ## Agent Support
 
-- **Claude Code**: installs `SessionStart` and `SessionEnd` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel returns `hookSpecificOutput.additionalContext` at startup and parses the transcript at shutdown.
+- **Claude Code**: installs `SessionStart` and `Stop` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel returns `hookSpecificOutput.additionalContext` at startup and parses the transcript at shutdown.
 - **Codex**: installs `SessionStart` and `Stop` command hooks in `~/.codex/hooks.json`, and enables `features.codex_hooks = true` in `~/.codex/config.toml`. Kernel also discovers Codex JSONL transcripts from `~/.codex/sessions` when Codex does not pass a transcript path directly.
 - **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. Kernel injects memory through OpenCode's `experimental.chat.system.transform` hook and reconstructs assistant text from local `~/.local/share/opencode/storage` JSON files when the session becomes idle.
 

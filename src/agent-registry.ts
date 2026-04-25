@@ -83,9 +83,9 @@ function buildHookBlocks(kernelRoot: string, agent: AgentId): HooksConfig {
     SessionStart: [{ matcher: "*", hooks: [{ type: "command", command: start }] }],
   };
 
-  // Claude Code's lifecycle end event is SessionEnd; Codex currently exposes
-  // Stop for the equivalent "the agent has finished this session/turn" surface.
-  const endEvent = agent === "codex" ? "Stop" : "SessionEnd";
+  // Current Claude Code and Codex CLIs emit Stop for the equivalent "the agent
+  // has finished this session/turn" surface.
+  const endEvent = agent === "opencode" ? "SessionEnd" : "Stop";
   hooks[endEvent] = [{ matcher: "*", hooks: [{ type: "command", command: end }] }];
   return hooks;
 }
