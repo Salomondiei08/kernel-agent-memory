@@ -1,6 +1,6 @@
 # Version History
 
-## Unreleased
+## 0.0.2
 
 - Reworked Kernel around a zero-dependency hook-based memory MVP for Claude Code, Codex, and OpenCode.
 - Added local token usage logging to `.kernel/token-log.json` from the `SessionEnd` hook.
