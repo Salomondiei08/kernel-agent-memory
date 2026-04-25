@@ -1,5 +1,9 @@
 # Version History
 
+## 0.0.3
+
+- Published the Claude Code `Stop` hook write-back fix so Claude-created sessions append to `.kernel/MEMORY.md`.
+
 ## 0.0.2
 
 - Reworked Kernel around a zero-dependency hook-based memory MVP for Claude Code, Codex, and OpenCode.
