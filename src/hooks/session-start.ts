@@ -2,10 +2,7 @@
 /**
  * SessionStart hook: invoked by Claude Code / Codex / OpenCode when a new
  * session begins. Reads the 5 most recent memory entries from the current
- * project's `.kernel/MEMORY.md` and prints them to stdout.
- *
- * Claude Code's hook protocol injects stdout into the agent's system context,
- * so this is how the next session "remembers" the last one.
+ * project's `.kernel/MEMORY.md` and returns them as context for the agent.
  *
  * Silent if there's no memory yet. Exits 0 on any error to avoid blocking
  * session startup.
@@ -13,6 +10,8 @@
 
 import { getRecentMemory } from "../memory.js";
 import { readHookInput, resolveProjectRoot } from "./hook-input.js";
+
+export type SessionStartAgent = "claude-code" | "codex" | "opencode" | string;
 
 export async function runSessionStart(
   projectRoot?: string,
@@ -31,6 +30,24 @@ export async function runSessionStart(
   return lines.join("\n") + "\n";
 }
 
+export function formatSessionStartOutput(
+  context: string,
+  agent: SessionStartAgent,
+): string {
+  if (!context) return "";
+  if (agent === "claude-code") {
+    return (
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "SessionStart",
+          additionalContext: context,
+        },
+      }) + "\n"
+    );
+  }
+  return context;
+}
+
 // CLI entry point — only runs when executed directly, not when imported by tests.
 const isDirect = import.meta.url === `file://${process.argv[1]}`;
 if (isDirect) {
@@ -39,7 +56,7 @@ if (isDirect) {
       const input = await readHookInput();
       const root = resolveProjectRoot(input);
       const out = await runSessionStart(root);
-      if (out) process.stdout.write(out);
+      if (out) process.stdout.write(formatSessionStartOutput(out, process.argv[2] || ""));
     } catch {
       process.exit(0);
     }

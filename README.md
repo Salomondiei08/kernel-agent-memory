@@ -29,7 +29,7 @@ Kernel is intentionally small: no server, no database, no background daemon, and
 ## Features
 
 - **Shared memory store** — human-readable `.kernel/MEMORY.md`
-- **SessionStart context** — prints the five most recent memories for agent context injection
+- **SessionStart context** — injects the five most recent memories into new agent sessions
 - **SessionEnd capture** — extracts decision, implementation, fix, architecture, avoid, and code-snippet lines
 - **Local token tracking** — appends estimated usage to `.kernel/token-log.json`
 - **Agent hook registration** — updates Claude Code, Codex, and OpenCode hook surfaces while preserving existing settings
@@ -40,7 +40,7 @@ Kernel is intentionally small: no server, no database, no background daemon, and
 - Codex hook registration has been verified with a real Codex CLI smoke test.
 - Codex session capture works even when the hook payload does not include a transcript path; Kernel discovers the matching `~/.codex/sessions/**/*.jsonl` file by session id or project cwd.
 - OpenCode write-back reconstructs assistant messages from local `~/.local/share/opencode/storage` JSON files.
-- Claude Code and OpenCode startup injection has been verified through their generated Kernel hooks.
+- Claude Code startup injection uses `SessionStart` `additionalContext`; OpenCode startup injection uses its chat system transform hook.
 - Live Claude Code and OpenCode conversation tests depend on those CLIs and the selected model provider being available locally. For token-free Claude Code testing, use Ollama as shown below.
 
 ## Installation
@@ -144,9 +144,9 @@ Optional variables used by hooks:
 
 ## Agent Support
 
-- **Claude Code**: installs `SessionStart` and `SessionEnd` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel parses that transcript and injects SessionStart stdout as context.
+- **Claude Code**: installs `SessionStart` and `SessionEnd` command hooks in `~/.claude/settings.json`. Claude passes JSON on stdin with `cwd` and `transcript_path`; Kernel returns `hookSpecificOutput.additionalContext` at startup and parses the transcript at shutdown.
 - **Codex**: installs `SessionStart` and `Stop` command hooks in `~/.codex/hooks.json`, and enables `features.codex_hooks = true` in `~/.codex/config.toml`. Kernel also discovers Codex JSONL transcripts from `~/.codex/sessions` when Codex does not pass a transcript path directly.
-- **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. Kernel reconstructs assistant text from OpenCode's local `~/.local/share/opencode/storage` JSON files when the session becomes idle.
+- **OpenCode**: installs a global plugin at `~/.config/opencode/plugins/kernel-memory.js`. Kernel injects memory through OpenCode's `experimental.chat.system.transform` hook and reconstructs assistant text from local `~/.local/share/opencode/storage` JSON files when the session becomes idle.
 
 ## Project Structure
 
@@ -173,7 +173,7 @@ Optional variables used by hooks:
 
 - MCP memory tools for explicit agent reads/writes
 - Dashboard for token and memory trends
-- More explicit OpenCode context injection once its plugin API exposes first-class prompt augmentation
+- More agent adapters as hook APIs stabilize
 - SQLite backend and cross-project memory index
 
 ## License

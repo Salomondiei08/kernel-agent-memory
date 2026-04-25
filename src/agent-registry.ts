@@ -141,9 +141,11 @@ export function mergeHooks(
 /**
  * Generate the OpenCode plugin source. OpenCode plugins export a factory
  * that receives context and returns event handlers. We subscribe to
- * session.start (prints memory to stdout) and session.idle (captures snippets
- * from OpenCode's local JSON storage). The payload we pipe to the Node hook scripts is
- * Claude-compatible so the hook scripts stay agent-agnostic.
+ * session.start (prints memory to stdout for visibility), chat system
+ * transforms (injects memory into the model context), and session.idle
+ * (captures snippets from OpenCode's local JSON storage). The payload we pipe
+ * to the Node hook scripts is Claude-compatible so the hook scripts stay
+ * agent-agnostic.
  */
 function buildOpenCodePlugin(kernelRoot: string): string {
   const startScript = path.join(kernelRoot, "dist", "hooks", "session-start.js");
@@ -190,6 +192,18 @@ export const KernelMemoryPlugin = async ({ project, directory, worktree } = {}) 
           hook_event_name: "SessionEnd",
           reason: "idle",
         });
+      }
+    },
+    "experimental.chat.system.transform": async (input = {}, output = {}) => {
+      const out = await runHook(START_SCRIPT, {
+        session_id: input.sessionID,
+        cwd,
+        hook_event_name: "SessionStart",
+        source: "startup",
+      });
+      if (out && out.trim()) {
+        output.system = output.system || [];
+        output.system.push(out.trim());
       }
     },
   };

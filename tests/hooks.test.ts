@@ -4,7 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { readMemory } from "../src/memory.js";
 import { runSessionEnd } from "../src/hooks/session-end.js";
-import { runSessionStart } from "../src/hooks/session-start.js";
+import {
+  formatSessionStartOutput,
+  runSessionStart,
+} from "../src/hooks/session-start.js";
 import { getTokenLogPath, parseTokenLog } from "../src/token-log.js";
 
 async function tempProject(): Promise<string> {
@@ -63,5 +66,22 @@ describe("hooks", () => {
     const output = await runSessionStart(root);
     expect(output).toContain("# Project Context (from Kernel)");
     expect(output).toContain("preserve unrelated hook config");
+  });
+
+  it("formats Claude Code SessionStart output as additional context JSON", () => {
+    const context = "# Project Context (from Kernel)\n\n- **decision**: keep memory shared\n";
+    const output = formatSessionStartOutput(context, "claude-code");
+    const parsed = JSON.parse(output);
+
+    expect(parsed.hookSpecificOutput).toEqual({
+      hookEventName: "SessionStart",
+      additionalContext: context,
+    });
+  });
+
+  it("keeps non-Claude SessionStart output as plain context", () => {
+    const context = "# Project Context (from Kernel)\n\n- **fix**: inject into startup\n";
+    expect(formatSessionStartOutput(context, "codex")).toBe(context);
+    expect(formatSessionStartOutput(context, "opencode")).toBe(context);
   });
 });

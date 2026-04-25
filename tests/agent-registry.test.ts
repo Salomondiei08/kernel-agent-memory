@@ -124,6 +124,10 @@ describe("agent-registry", () => {
     );
     expect(opencodePlugin).toContain("export const KernelMemoryPlugin");
     expect(opencodePlugin).toContain('event.type === "session.idle"');
+    expect(opencodePlugin).toContain(
+      '"experimental.chat.system.transform": async',
+    );
+    expect(opencodePlugin).toContain("output.system.push(out.trim())");
   });
 
   it("registerHooks preserves existing config content", async () => {
