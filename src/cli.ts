@@ -7,10 +7,41 @@
  *    OpenCode config files (creating them if missing).
  */
 
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureMemoryFile } from "./memory.js";
 import { registerHooks } from "./agent-registry.js";
+
+const GITIGNORE_ENTRY = ".kernel/";
+
+/**
+ * Appends `.kernel/` to the project's .gitignore if not already present.
+ * Creates .gitignore if it doesn't exist.
+ */
+async function ensureGitignore(cwd: string): Promise<boolean> {
+  const gitignorePath = path.join(cwd, ".gitignore");
+  let content = "";
+  try {
+    content = await fs.readFile(gitignorePath, "utf8");
+  } catch {
+    // file doesn't exist yet — will be created
+  }
+
+  const lines = content.split("\n");
+  const alreadyIgnored = lines.some(
+    (l) => l.trim() === GITIGNORE_ENTRY || l.trim() === ".kernel"
+  );
+  if (alreadyIgnored) return false;
+
+  const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
+  await fs.writeFile(
+    gitignorePath,
+    `${content}${separator}# Kernel runtime data — session memory and locks\n${GITIGNORE_ENTRY}\n`,
+    "utf8"
+  );
+  return true;
+}
 
 const CHECK = "\u2713";
 
@@ -30,6 +61,11 @@ export async function init(cwd: string = process.cwd()): Promise<void> {
   const memoryFile = await ensureMemoryFile(cwd);
   const memoryRel = path.relative(cwd, memoryFile) || memoryFile;
   process.stdout.write(`${CHECK} Created ${memoryRel}\n`);
+
+  const gitignoreAdded = await ensureGitignore(cwd);
+  if (gitignoreAdded) {
+    process.stdout.write(`${CHECK} Added .kernel/ to .gitignore\n`);
+  }
 
   const results = await registerHooks(kernelRoot);
   for (const r of results) {
